@@ -1,6 +1,7 @@
 #include "graph.h"
 #include <QTextStream>
 #include <QMessageBox>
+#include <QCheckBox>
 #include "priority_queue.h"
 
 bool flag=false;
@@ -10,7 +11,7 @@ int curr_index = 0;
 Graph::Graph(QWidget *parent) : QGraphicsView(parent){
     scene = new QGraphicsScene(this);
     scene->setItemIndexMethod(QGraphicsScene::NoIndex);
-    scene->setSceneRect(-500, -600, 950, 1100);
+    scene->setSceneRect(-500, -600, 1150, 1100);
 
     setScene(scene);
     setCacheMode(CacheBackground);
@@ -243,6 +244,15 @@ void Graph::createTabWidget(const QRectF &rect){
                              "QPushButton{height: 30px; width: 30px; background-color: lightGray; border-right, border-bottom: 4px solid Gray;}");
     connect(AdjMatrixButton, &QPushButton::clicked, this, &Graph::getAdjacencyMatrix);
 
+    QPushButton *IncMatrixButton = new QPushButton();
+    IncMatrixButton->setText(tr("Матрица инцидентности"));
+    IncMatrixButton->setFont(textfont);
+    IncMatrixButton->setMaximumSize(QSize(240, 35));
+    IncMatrixButton->setStyleSheet("QPushButton:selected, QPushButton:hover{color: darkBlue;} "
+                             "QPushButton:pressed{background-color: lightBlue;} "
+                             "QPushButton{height: 30px; width: 30px; background-color: lightGray; border-right, border-bottom: 4px solid Gray;}");
+    connect(IncMatrixButton, &QPushButton::clicked, this, &Graph::getIncidenceMatrix);
+
     QPushButton *GraphInfoButton = new QPushButton();
     GraphInfoButton->setText("Функции графа");
     GraphInfoButton->setFont(textfont);
@@ -272,6 +282,7 @@ void Graph::createTabWidget(const QRectF &rect){
     graphTabLayout->addWidget(resetButton);
     graphTabLayout->addWidget(clearButton);
     graphTabLayout->addWidget(AdjMatrixButton);
+    graphTabLayout->addWidget(IncMatrixButton);
     graphTabLayout->addWidget(GraphInfoButton);
     voyTabLayout->addWidget(findShortPath);
     voyTabLayout->addWidget(shortestPath);
@@ -323,7 +334,17 @@ void Graph::eraseVertex(int vertexIndex){
     }
     temp->clearEdge();
     scene->removeItem(temp);
-    edgeNum -= vertexList[vertexIndex]->getEdges().size()*2;
+    edgeNum -= (vertexList[vertexIndex]->getEdges().size()*2-vertexList[vertexIndex]->numOfOriented);
+    for(int i{0};i<globalEdgeList.size();i++){
+        if(globalEdgeList[i].second){
+            if(globalEdgeList[i].first->sourceVertex()->getIndex()==vertexIndex) globalEdgeList.remove(i);
+        }
+        else{
+            if(globalEdgeList[i].first->sourceVertex()->getIndex()==vertexIndex || globalEdgeList[i].first->destVertex()->getIndex()==vertexIndex){
+                globalEdgeList.remove(i);
+            }
+        }
+    }
     vertexList.erase(vertexList.begin() + vertexIndex);
     updateIndex();
     vertexNum--;
@@ -422,6 +443,63 @@ void Graph::getGraphInfo(){
 }
 
 
+void Graph::getIncidenceMatrix(){
+    int rows = 0;
+    int num_of_oriented = 0;
+    int num_of_non_oriented = 0;
+    for(int i=0;i<globalEdgeList.size();i++){
+        if(globalEdgeList[i].second){
+            num_of_oriented++;
+        }
+        else{
+            num_of_non_oriented++;
+        }
+    }
+    rows = num_of_oriented + num_of_non_oriented + 1;
+    int cols = vertexList.size()+1;
+    QTableWidget *infoWindow = new QTableWidget(rows, cols);
+    infoWindow->setItem(0, 0, new QTableWidgetItem("Матрица инцидентности графа"));
+    infoWindow->item(0, 0)->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    for(int i{0}; i < vertexNum; i++){
+        infoWindow->setItem(0, i+1, new QTableWidgetItem(QString::number(i)));
+        infoWindow->item(0, i+1)->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    }
+    int k=0;
+    for(int i{0};i<globalEdgeList.size();i++){
+        infoWindow->setItem(1+k, 0, new QTableWidgetItem(QString::number(k)));
+        infoWindow->item(1+k, 0)->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        k++;
+        if(!globalEdgeList[i].second) i++;
+    }
+    k=0;
+    for(unsigned int i{0}; i < globalEdgeList.size(); i++){
+        for(int j{0}; j < vertexNum; j++){
+            infoWindow->setItem(1+k, 1+j, new QTableWidgetItem("-"));
+            infoWindow->item(1+k, 1+j)->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        }
+        k++;
+        if(!globalEdgeList[i].second) i++;
+        infoWindow->setColumnWidth(k+1, 30);
+    }
+    k=0;
+    for(int i{0};i<globalEdgeList.size();i++){
+        int weight = globalEdgeList[i].first->getWeight();
+        int source = globalEdgeList[i].first->sourceVertex()->getIndex();
+        int dest = globalEdgeList[i].first->destVertex()->getIndex();
+        infoWindow->setItem(1+k, 1+source, new QTableWidgetItem(QString::number(weight)));
+        infoWindow->item(1+k, 1+source)->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        infoWindow->setItem(1+k, 1+dest, new QTableWidgetItem(QString::number(weight)));
+        infoWindow->item(1+k, 1+dest)->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        k++;
+        if(!globalEdgeList[i].second) i++;
+    }
+    infoWindow->setWindowTitle("Информация о графе");
+    infoWindow->setColumnWidth(0, 240);
+    infoWindow->setFixedSize(QSize(600, 700));
+    infoWindow->show();
+}
+
+
 void Graph::getAdjacencyMatrix(){
     int rows = vertexList.size() + 1;
     int cols = vertexList.size() + 1;
@@ -454,13 +532,29 @@ void Graph::getAdjacencyMatrix(){
     infoWindow->show();
 }
 
-void Graph::insertEdge(int source, int dest, double weight){
+void Graph::insertEdge(int source, int dest, double weight,bool oriented){
     if(checkAdjacent(source, dest)){
         return;
     } else {
-        scene->addItem(new Edge(vertexList[source], vertexList[dest], weight));
-        scene->addItem(new Edge(vertexList[dest], vertexList[source], weight));
-        edgeNum += 2;
+        if(oriented){
+            Edge * edge_one = new Edge(vertexList[source], vertexList[dest], weight);
+            scene->addItem(edge_one);
+            QPair <Edge*,bool> p1 = {edge_one,true};
+            globalEdgeList.append(p1);
+            edgeNum += 1;
+            vertexList[source]->numOfOriented++;
+        }
+        else{
+            Edge * edge_one = new Edge(vertexList[source], vertexList[dest], weight);
+            Edge * edge_two = new Edge(vertexList[dest], vertexList[source], weight);
+            scene->addItem(edge_one);
+            scene->addItem(edge_two);
+            QPair <Edge*,bool> p1 = {edge_one,false};
+            QPair <Edge*,bool> p2 = {edge_two,false};
+            globalEdgeList.append(p1);
+            globalEdgeList.append(p2);
+            edgeNum += 2;
+        }
     }
 }
 
@@ -477,19 +571,42 @@ void Graph::eraseEdge(int source, int dest){
         scene->addText(tr("не связаны"));
         return;
     }
-    for(Edge *edge : vertexList[source]->getEdges()){
-        if(edge -> destVertex() ->getIndex() == dest){
-            vertexList[source]->eraseEdge(dest);
-            scene->removeItem(edge);
+    for(int i=0;i<globalEdgeList.size();i++){
+        Edge* e = globalEdgeList[i].first;
+        if(globalEdgeList[i].second){
+            if(e->sourceVertex()->getIndex()==source && e->destVertex()->getIndex()==dest){
+                vertexList[source]->eraseEdge(dest);
+                scene->removeItem(e);
+            }
+        }
+        else{
+            if(e->sourceVertex()->getIndex()==source && e->destVertex()->getIndex()==dest){
+                vertexList[source]->eraseEdge(dest);
+                scene->removeItem(e);
+            }
+            if(e->sourceVertex()->getIndex()==dest && e->destVertex()->getIndex()==source){
+                vertexList[source]->eraseEdge(source);
+                scene->removeItem(e);
+            }
         }
     }
-    for(Edge *edge : vertexList[dest]->getEdges()){
-        if(edge -> destVertex() ->getIndex() == source){
-            vertexList[dest]->eraseEdge(source);
-            scene->removeItem(edge);
+    for(int i{0};i<globalEdgeList.size();i++){
+        if(globalEdgeList[i].second){
+            if(globalEdgeList[i].first->sourceVertex()->getIndex()==source && globalEdgeList[i].first->destVertex()->getIndex()==dest){
+                globalEdgeList.remove(i);
+            }
+            edgeNum -= 1;
+        }
+        else{
+            if(globalEdgeList[i].first->sourceVertex()->getIndex()==source && globalEdgeList[i].first->destVertex()->getIndex()==dest){
+                globalEdgeList.remove(i);
+            }
+            if(globalEdgeList[i].first->sourceVertex()->getIndex()==dest && globalEdgeList[i].first->destVertex()->getIndex()==source){
+                globalEdgeList.remove(i);
+            }
+            edgeNum -= 2;
         }
     }
-    edgeNum -= 2;
 }
 
 bool Graph::checkAdjacent(int source, int dest){
@@ -756,7 +873,14 @@ void Graph::travellingSalesman(int vertexIndex,QLineEdit *line)
             if(e->destVertex()==vertexList[path[i+1]]){
                 e->setColor("blue");
             }
+            if(e->destVertex()==vertexList[path[(vertexList.size()+i-1) % vertexList.size()]]){
+                e->setColor("blue");
+            }
         }
+    }
+    for(int i=0;i<vertexNum;i++){
+        vertexList[path[i]]->setColor("blue");
+        delay(1500);
     }
 }
 
@@ -864,6 +988,8 @@ void Graph::createAddEdgeWindow(){
     input3 = new QLineEdit;
     QLabel *label = new QLabel;
     label->setFrameStyle(QFrame::Box | QFrame::Plain);
+    check = new QCheckBox;
+    check->setText("Ориентированное");
     QPushButton *okButton = new QPushButton(tr("OK"));
 
     QGridLayout *layout = new QGridLayout;
@@ -873,6 +999,7 @@ void Graph::createAddEdgeWindow(){
     layout->addWidget(input2, 1, 1);
     layout->addWidget(new QLabel(tr("Вес ребра:")), 2, 0);
     layout->addWidget(input3, 2, 1);
+    layout->addWidget(check,3,0,Qt::AlignLeft);
     layout->addWidget(okButton, 3, 1, Qt::AlignRight);
     layout->setSizeConstraint(QLayout::SetFixedSize);
     window->setLayout(layout);
@@ -886,11 +1013,12 @@ void Graph::addEdgeSignal(){
     int srcIndex = input1->text().toInt();
     int destIndex = input2->text().toInt();
     double edgeWeight = input3->text().toDouble();
+    bool oriented = check->isChecked();
     window->close();
     if(srcIndex >= vertexList.size() || destIndex >= vertexList.size() || edgeWeight <= 0){
         return;
     }
-    insertEdge(srcIndex, destIndex, edgeWeight);
+    insertEdge(srcIndex, destIndex, edgeWeight,oriented);
 }
 
 void Graph::createEraseEdgeWindow(){

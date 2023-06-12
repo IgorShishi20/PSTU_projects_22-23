@@ -15,7 +15,7 @@ Edge::Edge(Vertex *source, Vertex *dest, double weight){
     setAcceptedMouseButtons(Qt::NoButton);
     source->addEdge(this);
     this->weight = weight;
-    color = "whtie";
+    color = "white";
     adjust();
 }
 
@@ -57,6 +57,14 @@ QRectF Edge::boundingRect() const{
     return QRectF(sourcePoint, QSizeF(destPoint.x() - sourcePoint.x(), destPoint.y() - sourcePoint.y())).normalized().adjusted(-extra, -extra, extra, extra);
 }
 
+bool Edge::getOriented(){
+    return oriented;
+}
+
+void Edge::setOriented(bool orientation){
+    oriented = orientation;
+}
+
 void Edge::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *){
     if(!source || !dest){
         return;
@@ -80,8 +88,8 @@ void Edge::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
         painter->setPen(QPen(Qt::red, 1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     }
     if(color == "blue"){
-        painter->setBrush(Qt::blue);
-        painter->setPen(QPen(Qt::blue, 1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter->setBrush(Qt::green);
+        painter->setPen(QPen(Qt::green, 1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     }
     painter->drawLine(line);
     painter->drawPolygon(QPolygonF() << line.p2() << destArrowP1 << destArrowP2);

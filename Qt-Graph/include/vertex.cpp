@@ -220,6 +220,10 @@ void Vertex::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QW
             gradient.setColorAt(1, QColor(Qt::cyan).lighter(120));
             gradient.setColorAt(0, QColor(Qt::darkCyan).lighter(120));
         }
+        else if (this -> color == "blue"){
+            gradient.setColorAt(0, QColor(Qt::blue).lighter(120));
+            gradient.setColorAt(1, QColor(Qt::blue).lighter(120));
+        }
 
     } else {
         if (this -> color == "white"){
@@ -234,6 +238,11 @@ void Vertex::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QW
             gradient.setColorAt(0, QColor(Qt::cyan).lighter(120));
             gradient.setColorAt(1, QColor(Qt::darkCyan).lighter(120));
         }
+        else if (this -> color == "blue"){
+            gradient.setColorAt(0, QColor(Qt::blue).lighter(120));
+            gradient.setColorAt(1, QColor(Qt::blue).lighter(120));
+        }
+
     }
     painter->setBrush(gradient);
     painter->setPen(QPen(Qt::black, 0));

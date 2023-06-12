@@ -31,6 +31,8 @@ public:
     void setWeight(double w);
     QString getColor();
     void setColor(QString color);
+    bool getOriented();
+    void setOriented(bool orientation);
 
 protected:
     QRectF boundingRect() const override;
@@ -44,7 +46,7 @@ private:
     qreal arrowSize = 7;
 
     QString color;
-
+    bool oriented;
     double weight;
 
 

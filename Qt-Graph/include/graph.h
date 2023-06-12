@@ -32,6 +32,7 @@
 #include <QMenu>
 #include <QDir>
 #include <QSaveFile>
+#include <QCheckBox>
 #include <QFileDialog>
 
 
@@ -71,7 +72,7 @@ protected:
     void insertVertex();
     void setVertexPos(int vertexIndex, double x, double y);
     void eraseVertex(int vertexIndex);
-    void insertEdge(int source, int dest, double weight);
+    void insertEdge(int source, int dest, double weight,bool oriented);
     void updateWeight(int source, int dest, double weight);
     void eraseEdge(int source, int dest);
     bool checkAdjacent(int source, int dest);
@@ -83,6 +84,7 @@ protected:
 
     void getVertexInfo(int vertexIndex);
     void getAdjacencyMatrix();
+    void getIncidenceMatrix();
     void getGraphInfo();
 
     void dfsUtil(int vertexIndex, QVector<bool> &visited);
@@ -127,6 +129,7 @@ private:
     void travellingSalesman(int,QLineEdit*);
 
     QVector<Vertex *> vertexList;
+    QVector<QPair<Edge *,bool>> globalEdgeList;
     QGraphicsScene *scene;
     int timerId = 0;
 
@@ -134,6 +137,7 @@ private:
     QLineEdit *input1;
     QLineEdit *input2;
     QLineEdit *input3;
+    QCheckBox *check;
 
     QString curFile;
 
